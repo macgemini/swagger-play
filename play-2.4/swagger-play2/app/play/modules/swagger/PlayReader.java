@@ -422,6 +422,7 @@ public class PlayReader {
 
         ApiOperation apiOperation = ReflectionUtils.getAnnotation(method, ApiOperation.class);
         ApiResponses responseAnnotation = ReflectionUtils.getAnnotation(method, ApiResponses.class);
+        ApiGenericResponse genericResponse = ReflectionUtils.getAnnotation(method, ApiGenericResponse.class);
 
         String operationId = method.getName();
         operation.operationId(operationId);
@@ -512,15 +513,6 @@ public class PlayReader {
                     operation.response(apiResponse.code(), response);
                 }
 
-                String genericType = null;
-                if(apiResponse instanceof ApiGenericResponse) {
-                    ApiGenericResponse genericResponse = (ApiGenericResponse)apiResponse;
-
-                    /**
-                     * wazne
-                     */
-                    genericType = genericResponse.getGenericType();
-                }
 
                 if (StringUtils.isNotEmpty(apiResponse.reference())) {
                     response.schema(new RefProperty(apiResponse.reference()));
@@ -529,8 +521,8 @@ public class PlayReader {
                     final Property property = ModelConverters.getInstance().readAsProperty(responseType);
                     if (property != null) {
                         response.schema(ContainerWrapper.wrapContainer(apiResponse.responseContainer(), property));
-                        if(genericType != null)
-                            appendModels(responseType,genericType);
+                        if(genericResponse != null)
+                            appendModels(responseType,genericResponse);
                         else
                             appendModels(responseType);
                     }
@@ -751,43 +743,25 @@ public class PlayReader {
         }
     }
 
-    private void appendModels(Type type, String genericType) {
-        try {
-            Type gener = new MoreTypes.ParameterizedTypeImpl(Class.forName(type.getTypeName()).getComponentType(), null, Class.forName(genericType).getComponentType());
-        } catch (ClassNotFoundException ex) {
-
-        }
-
-        final Map<String, Model> models = ModelConverters.getInstance().readAll(type);
+    private void appendModels(Type type, ApiGenericResponse genericResponse) {
+        Type gener = new MoreTypes.ParameterizedTypeImpl(null, genericResponse.genericType(), genericResponse.genericTypeParameter());
+        final Map<String, Model> models = ModelConverters.getInstance().readAll(gener);
         for (Map.Entry<String, Model> entry : models.entrySet()) {
-            getSwagger().model(entry.getKey(), entry.getValue());
+            String key = entry.getKey();
+            Model value = entry.getValue();
+            if(entry.getValue() instanceof ModelImpl) {
+                ModelImpl model = (ModelImpl)value;
+                String comp = genericResponse.genericType().getSimpleName()+genericResponse.genericTypeParameter().getSimpleName();
+               if(model.getName().equals(comp))  {//if(model.getName().equals("PaginationResultSimilarOffer")) {
+                    key = genericResponse.genericType().getSimpleName();
+                    model.setName(key);
+                    value = model;
+                }
+            }
+            getSwagger().model(key, value);
         }
     }
 
-    private class GenericTypeOverride  {
-        private String key;
-        private String value;
-        GenericTypeOverride(String key, String value) {
-            this.key = key;
-            this.value = value;
-        }
-
-        public String getKey() {
-            return this.key;
-        }
-
-        public void setKey(String key) {
-            this.key = key;
-        }
-
-        public String getValue() {
-            return this.value;
-        }
-
-        public void setValue(String value) {
-            this.value = value;
-        }
-    }
 
     private Map<String, Property> parseResponseHeaders(ResponseHeader[] headers) {
         Map<String, Property> responseHeaders = null;

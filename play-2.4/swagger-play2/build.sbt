@@ -6,9 +6,14 @@ checksums in update := Nil
 scalaVersion:= "2.11.6"
 crossScalaVersions := Seq("2.11.6", "2.11.7")
 
+resolvers += Resolver.sonatypeRepo("releases")
+
+resolvers += Resolver.sonatypeRepo("snapshots")
+
 libraryDependencies ++= Seq(
   "org.slf4j"          % "slf4j-api"                  % "1.6.4",
   "io.swagger"         % "swagger-core"               % "1.5.8",
+  "com.google.inject.extensions" % "guice-assistedinject" % "4.0",
   "io.swagger"        %% "swagger-scala-module"       % "1.0.2",
   "com.typesafe.play" %% "routes-compiler"            % "2.4.6",
   "com.typesafe.play" %% "play-ebean"                 % "2.0.0"            % "test",
@@ -16,6 +21,9 @@ libraryDependencies ++= Seq(
   "org.specs2"        %% "specs2-mock"                % "3.6.6"            % "test",
   "org.specs2"        %% "specs2-junit"               % "3.6.6"            % "test",
   "org.mockito"        % "mockito-core"               % "1.9.5"            % "test")
+
+
+
 
 mappings in (Compile, packageBin) ~= { _.filter(!_._1.getName.equals("logback.xml")) }
 
