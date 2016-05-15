@@ -1,6 +1,8 @@
 package play.modules.swagger;
 
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.type.SimpleType;
+import com.google.inject.internal.MoreTypes;
 import io.swagger.annotations.*;
 import io.swagger.annotations.Info;
 import io.swagger.converter.ModelConverters;
@@ -510,6 +512,16 @@ public class PlayReader {
                     operation.response(apiResponse.code(), response);
                 }
 
+                String genericType = null;
+                if(apiResponse instanceof ApiGenericResponse) {
+                    ApiGenericResponse genericResponse = (ApiGenericResponse)apiResponse;
+
+                    /**
+                     * wazne
+                     */
+                    genericType = genericResponse.getGenericType();
+                }
+
                 if (StringUtils.isNotEmpty(apiResponse.reference())) {
                     response.schema(new RefProperty(apiResponse.reference()));
                 } else if (!isVoid(apiResponse.response())) {
@@ -517,7 +529,10 @@ public class PlayReader {
                     final Property property = ModelConverters.getInstance().readAsProperty(responseType);
                     if (property != null) {
                         response.schema(ContainerWrapper.wrapContainer(apiResponse.responseContainer(), property));
-                        appendModels(responseType);
+                        if(genericType != null)
+                            appendModels(responseType,genericType);
+                        else
+                            appendModels(responseType);
                     }
                 }
             }
@@ -733,6 +748,44 @@ public class PlayReader {
         final Map<String, Model> models = ModelConverters.getInstance().readAll(type);
         for (Map.Entry<String, Model> entry : models.entrySet()) {
             getSwagger().model(entry.getKey(), entry.getValue());
+        }
+    }
+
+    private void appendModels(Type type, String genericType) {
+        try {
+            Type gener = new MoreTypes.ParameterizedTypeImpl(Class.forName(type.getTypeName()).getComponentType(), null, Class.forName(genericType).getComponentType());
+        } catch (ClassNotFoundException ex) {
+
+        }
+
+        final Map<String, Model> models = ModelConverters.getInstance().readAll(type);
+        for (Map.Entry<String, Model> entry : models.entrySet()) {
+            getSwagger().model(entry.getKey(), entry.getValue());
+        }
+    }
+
+    private class GenericTypeOverride  {
+        private String key;
+        private String value;
+        GenericTypeOverride(String key, String value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        public String getKey() {
+            return this.key;
+        }
+
+        public void setKey(String key) {
+            this.key = key;
+        }
+
+        public String getValue() {
+            return this.value;
+        }
+
+        public void setValue(String value) {
+            this.value = value;
         }
     }
 
